@@ -1,51 +1,91 @@
-// service-worker.js
-const CACHE_NAME = 'radio-app-v1';
+const CACHE_NAME = 'my-radio-pwa-cache-v1';
+
 const urlsToCache = [
     '/',
-    '/index.html',
-    '/script.js',
-    '/style.css',
-    '/manifest.json',
+    'index.html',
+    'style.css',
+    'script.js',
+    'manifest.json',
     '/icons/icon-192x192.png',
     '/icons/icon-512x512.png'
-    // Можете добавить сюда ваш аудио-поток, если он статичный.
-    // Для потокового радио, как правило, не кэшируется сам поток.
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
+    console.log('Service Worker: Начинаю установку...');
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => { console.log('Opened cache');
+            .then(cache => {
+                console.log('Service Worker: Кэширую основные ресурсы приложения.');
                 return cache.addAll(urlsToCache);
             })
-    );
-});
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                // Возвращаем ресурс из кэша, если он есть
-                if (response) {
-                    return response;
-                }
-                // Иначе, выполняем запрос к сети
-                return fetch(event.request);
+            .then(() => {
+                console.log('Service Worker: Установка завершена, пропускаю ожидание.');
+                return self.skipWaiting();
+            })
+            .catch(error => {
+                console.error('Service Worker: Ошибка при кэшировании во время установки:', error);
             })
     );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
+    const cacheWhitelist = [CACHE_NAME]; 
+
+    console.log('Service Worker: Активируюсь...');
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
+        caches.keys().then(cacheNames => {
             return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        console.log('Deleting old cache:', cacheName);
+                cacheNames.map(cacheName => {
+                    if (cacheWhitelist.indexOf(cacheName) === -1) {
+                        console.log(ⓃService Worker: Удаляю старый кэш: ${cacheName}Ⓝ);
                         return caches.delete(cacheName);
                     }
                 })
             );
         })
+        .then(() => {
+            console.log('Service Worker: Захватываю контроль над клиентами.');
+            return self.clients.claim();
+        })
+        .catch(error => {
+            console.error('Service Worker: Ошибка при активации:', error);
+        })
     );
+});
+
+self.addEventListener('fetch', event => {
+    const requestUrl = new URL(event.request.url);
+
+    const isAssetToCache = urlsToCache.includes(requestUrl.pathname) || 
+                           requestUrl.origin === self.location.origin;
+
+    if (isAssetToCache) {
+        event.respondWith(
+            caches.match(event.request)
+                .then(response => {
+                    if (response) {
+                        console.log(ⓃService Worker: Отдаю из кэша: ${requestUrl.pathname}Ⓝ);
+                        return response;
+                    }
+                    console.log(ⓃService Worker: Запрашиваю из сети и кэширую: ${requestUrl.pathname}Ⓝ);
+                    return fetch(event.request)
+                        .then(networkResponse => {
+                            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                                const responseToCache = networkResponse.clone();
+                                caches.open(CACHE_NAME)
+                                    .then(cache => {
+                                        cache.put(event.request, responseToCache);
+                                    });
+                            }
+                            return networkResponse;
+                        })
+                        .catch(error => {
+                            console.error(ⓃService Worker: Ошибка при запросе ${requestUrl.pathname} из сети:Ⓝ, error);
+                        });
+                })
+        );
+    } else {
+        console.log(ⓃService Worker: Запрашиваю из сети напрямую: ${requestUrl.href}Ⓝ);
+        event.respondWith(fetch(event.request));
+    }
 });

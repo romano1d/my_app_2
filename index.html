@@ -3,37 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Музыкальный КЛЮЧ</title>
-    <link rel="manifest" href="/manifest.json">
+    <title>Моё Радио PWA</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Добавьте ссылку на иконки для лучшей совместимости -->
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#007bff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
 </head>
 <body>
     <div class="container">
-        <h1>Музыкальный КЛЮЧ</h1>
-        <audio id="audioPlayer" src="https://myradio24.org/52340" preload="auto"></audio>
-        <div class="controls">
-            <button id="playPauseButton">Включить Радио</button>
-        </div>
-        <p id="statusMessage">Нажмите "Включить Радио" для начала.</p>
+        <h1>Моё PWA Радио</h1>
+        
+        <audio id="audioPlayer" preload="auto" crossorigin="anonymous">
+            <source src="https://myradio24.org/52340" type="audio/mpeg"> 
+            Ваш браузер не поддерживает элемент audio.
+        </audio>
 
-        <!-- НОВАЯ КНОПКА -->
-        <button id="addToHomeScreenButton" style="display: none; margin-top: 20px;">
-            Добавить на Главный Экран
-        </button>
+        <button id="playPauseButton">Включить Радио</button>
+        <div id="statusMessage">Нажмите "Включить Радио" для начала.</div>
     </div>
 
     <script src="script.js"></script>
     <script>
-        // Регистрация Service Worker (ОБЯЗАТЕЛЬНО ДЛЯ PWA)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
                     .then(registration => {
-                        console.log('Service Worker зарегистрирован успешно:', registration);
+                        console.log('Service Worker зарегистрирован:', registration);
                     })
                     .catch(error => {
                         console.error('Ошибка регистрации Service Worker:', error);

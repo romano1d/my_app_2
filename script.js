@@ -1,78 +1,72 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const audioPlayer = document.getElementById('audioPlayer');
     const playPauseButton = document.getElementById('playPauseButton');
+    const audioPlayer = document.getElementById('audioPlayer');
     const statusMessage = document.getElementById('statusMessage');
-    const addToHomeScreenButton = document.getElementById('addToHomeScreenButton'); // Новая кнопка
 
     let isPlaying = false;
-    let deferredPrompt; // Переменная для хранения события beforeinstallprompt
 
-    // 1. Обработчик события beforeinstallprompt для PWA
-    window.addEventListener('beforeinstallprompt', (e) => {
-        // Предотвращаем автоматический вызов браузером
-        e.preventDefault();
-        // Сохраняем событие, чтобы его можно было вызвать позже
-        deferredPrompt = e;
-        // Показываем нашу кнопку "Добавить на Главный Экран"
-        addToHomeScreenButton.style.display = 'block';
-        console.log('BeforeInstallPrompt fired!');
-    });
-
-    // 2. Обработчик клика по кнопке "Добавить на Главный Экран"
-    addToHomeScreenButton.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            // Скрываем кнопку, так как пользователь уже кликнул по ней
-            addToHomeScreenButton.style.display = 'none';
-            // Показываем системный диалог установки
-            deferredPrompt.prompt();
-            // Ждем выбора пользователя
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(ⓃПользователь ${outcome === 'accepted' ? 'согласился' : 'отклонил'} установку PWAⓃ);
-            // Сбрасываем deferredPrompt, так как он больше не нужен
-            deferredPrompt = null;
-        }
-    });
-
-    // Основная логика кнопки Play/Pause
-    playPauseButton.addEventListener('click', () => {
-        if (isPlaying) {
+    const togglePlayPause = () => {
+        if (!isPlaying) {
+            audioPlayer.play()
+                .then(() => {
+                    isPlaying = true;
+                    playPauseButton.textContent = 'Остановить Радио';
+                    statusMessage.textContent = 'Радио играет...';
+                    console.log('Аудио успешно запущено.');
+                })
+                .catch(error => {
+                    console.error('Ошибка при попытке воспроизведения аудио:', error);
+                    statusMessage.textContent = 'Ошибка воспроизведения. Нажмите еще раз или разрешите автовоспроизведение.';
+                    isPlaying = false;
+                    playPauseButton.textContent = 'Включить Радио';
+                });
+        } else {
             audioPlayer.pause();
+            isPlaying = false;
             playPauseButton.textContent = 'Включить Радио';
             statusMessage.textContent = 'Радио остановлено.';
-            isPlaying = false;
-        } else {
-            const playPromise = audioPlayer.play();
-
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    playPauseButton.textContent = 'Выключить Радио';
-                    statusMessage.textContent = 'Радио играет...';
-                    isPlaying = true;
-                }).catch(error => {
-                    statusMessage.textContent = 'Не удалось воспроизвести радио. Возможно, требуется взаимодействие пользователя.';
-                    console.error('Ошибка воспроизведения:', error);
-                    isPlaying = false;
-                });
-            }
+            console.log('Аудио остановлено.');
         }
-    });
+    };
 
-    // Обработчики событий для аудиоплеера
+    playPauseButton.addEventListener('click', togglePlayPause);
+
     audioPlayer.addEventListener('play', () => {
-        statusMessage.textContent = 'Радио играет...';
-        playPauseButton.textContent = 'Выключить Радио';
         isPlaying = true;
+        playPauseButton.textContent = 'Остановить Радио';
+        statusMessage.textContent = 'Радио играет...';
     });
 
     audioPlayer.addEventListener('pause', () => {
-        statusMessage.textContent = 'Радио остановлено.';
-        playPauseButton.textContent = 'Включить Радио';
         isPlaying = false;
+        playPauseButton.textContent = 'Включить Радио';
+        statusMessage.textContent = 'Радио остановлено.';
+    });
+
+    audioPlayer.addEventListener('ended', () => {
+        isPlaying = false;
+        playPauseButton.textContent = 'Включить Радио';
+        statusMessage.textContent = 'Радиопоток завершился.';
     });
 
     audioPlayer.addEventListener('error', (e) => {
-        statusMessage.textContent = 'Ошибка загрузки или воспроизведения радио.';
-        console.error('Ошибка аудиоплеера:', e);
+        console.error('Ошибка аудио:', e);
+        let message = 'Произошла ошибка при воспроизведении радиопотока.';
+        switch (e.target.error.code) {
+            case e.target.error.MEDIA_ERR_ABORTED:
+                message = 'Воспроизведение аудио было прервано.';
+                break;
+            case e.target.error.MEDIA_ERR_NETWORK:
+                message = 'Ошибка сети: Радиопоток недоступен.';
+                break;
+            case e.target.error.MEDIA_ERR_DECODE:
+                message = 'Ошибка декодирования аудио.';
+                break;
+            case e.target.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                message = 'Формат аудио не поддерживается или URL неверен.';
+                break;
+        }
+        statusMessage.textContent = message;
         isPlaying = false;
         playPauseButton.textContent = 'Включить Радио';
     });
@@ -82,6 +76,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     audioPlayer.addEventListener('stalled', () => {
-        statusMessage.textContent = 'Проблема с сетью или потоком...';
+        statusMessage.textContent = 'Соединение прервано... Попытка восстановить.';
+    });
+
+    audioPlayer.addEventListener('canplay', () => {
+        if (!isPlaying) {
+            statusMessage.textContent = 'Готов к воспроизведению.';
+        }
     });
 });
